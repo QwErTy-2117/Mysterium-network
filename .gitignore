@@ -3,3 +3,4 @@ storage/
 *.myst
 *.log
 package-lock.json
+scripts/
