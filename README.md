@@ -215,17 +215,16 @@ node client/client.js verify myfile.pdf.myst
 
 ### Why Run a Storage Node?
 
-- 🌐 Support the decentralized network
-- 📊 Earn reputation (higher uptime = better selection)
-- 🔒 Privacy preserved (only encrypted fragments)
-- 💾 Share unused disk space
-- 💰 Future incentives planned
+-  Support the decentralized network
+-  Earn reputation (higher uptime = better selection)
+-  Privacy preserved (only encrypted fragments)
+-  Share unused disk space
 
 ### Requirements
 
 - **Disk Space**: 1GB - 1TB+ (configurable)
 - **Bandwidth**: Stable internet connection
-- **Uptime**: 24/7 recommended (higher uptime = better reputation)
+- **Uptime**: 24/7 recommended 
 - **Open Port**: One port accessible from internet
 
 ### Quick Start
