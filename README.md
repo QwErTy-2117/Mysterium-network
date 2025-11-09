@@ -443,7 +443,7 @@ DEBUG=mysterium:* node client/client.js upload test.txt
 
 ---
 
-## Donate
+## ❤️ Donate
 
 Support the project:
 
