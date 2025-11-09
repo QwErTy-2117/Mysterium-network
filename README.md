@@ -444,12 +444,6 @@ DEBUG=mysterium:* node client/client.js upload test.txt
 
 ---
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
 ## Donate
 
 Support the project:
