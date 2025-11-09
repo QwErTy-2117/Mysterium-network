@@ -7,7 +7,7 @@ const chalk = require('chalk');
 const compression = require('compression');
 const checkDiskSpace = require('check-disk-space').default;
 const publicIp = require('public-ip');
-const ora = require('ora'); // <<<<<<< FIX: Import ora
+const ora = require('ora');
 const constants = require('../shared/constants');
 const config = require('../config');
 
@@ -24,14 +24,14 @@ class StorageNode {
             storagePath: storagePath,
             maxStorage: nodeConfig.maxStorage || (config.storageNode.maxStorageGB * 1024 * 1024 * 1024),
             publicKey: nodeConfig.publicKey || this.generateKeyPair().publicKey,
-            usePublicIp: nodeConfig.usePublicIp !== false // Default to true
+            usePublicIp: nodeConfig.usePublicIp !== false
         };
         
         this.nodeId = null;
         this.publicIp = null;
         this.fragments = new Map();
         this.usedSpace = 0;
-        this.actualDiskSpace = 0;
+        this.nodeIdFilePath = path.join(this.config.storagePath, 'node_id.json');
         
         this.setupMiddleware();
         this.setupRoutes();
@@ -190,73 +190,6 @@ class StorageNode {
             }
         });
         
-        this.app.delete('/delete/:fragmentId', async (req, res) => {
-            try {
-                const { fragmentId } = req.params;
-                
-                if (!this.fragments.has(fragmentId)) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'Fragment not found'
-                    });
-                }
-                
-                const fragment = this.fragments.get(fragmentId);
-                await fs.unlink(fragment.path);
-                
-                this.usedSpace -= fragment.size;
-                this.fragments.delete(fragmentId);
-                
-                console.log(chalk.yellow(`Deleted fragment: ${fragmentId}`));
-                
-                res.json({
-                    success: true,
-                    message: 'Fragment deleted'
-                });
-            } catch (error) {
-                console.error(chalk.red(`Error deleting fragment:`, error));
-                res.status(500).json({
-                    success: false,
-                    message: error.message
-                });
-            }
-        });
-        
-        this.app.post('/verify/:fragmentId', async (req, res) => {
-            try {
-                const { fragmentId } = req.params;
-                const { expectedChecksum } = req.body;
-                
-                if (!this.fragments.has(fragmentId)) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'Fragment not found'
-                    });
-                }
-                
-                const fragment = this.fragments.get(fragmentId);
-                const data = await fs.readFile(fragment.path);
-                
-                const actualChecksum = crypto
-                    .createHash('sha256')
-                    .update(data)
-                    .digest('hex');
-                
-                const isValid = actualChecksum === expectedChecksum;
-                
-                res.json({
-                    success: true,
-                    isValid,
-                    actualChecksum
-                });
-            } catch (error) {
-                res.status(500).json({
-                    success: false,
-                    message: error.message
-                });
-            }
-        });
-        
         this.app.get('/ping', (req, res) => {
             res.json({ 
                 timestamp: Date.now(),
@@ -264,40 +197,13 @@ class StorageNode {
                 publicIp: this.publicIp
             });
         });
-        
-        this.app.get('/space', async (req, res) => {
-            try {
-                const diskInfo = await this.getDiskInfo();
-                const availableSpace = await this.getAvailableSpace();
-                
-                res.json({
-                    success: true,
-                    available: availableSpace,
-                    used: this.usedSpace,
-                    fragments: this.fragments.size,
-                    disk: {
-                        free: diskInfo.free,
-                        total: diskInfo.size,
-                        percentFree: ((diskInfo.free / diskInfo.size) * 100).toFixed(2)
-                    },
-                    configured: {
-                        maxStorage: this.config.maxStorage,
-                        percentUsed: ((this.usedSpace / this.config.maxStorage) * 100).toFixed(2)
-                    }
-                });
-            } catch (error) {
-                res.status(500).json({
-                    success: false,
-                    message: error.message
-                });
-            }
-        });
     }
     
     async initialize() {
         try {
             await this.detectPublicIp();
             await fs.mkdir(this.config.storagePath, { recursive: true });
+            await this.loadNodeId();
             await this.scanExistingFragments();
             await this.checkDiskSpace();
             await this.registerWithDirectory();
@@ -309,6 +215,32 @@ class StorageNode {
         } catch (error) {
             console.error(chalk.red('Failed to initialize storage node:', error));
             process.exit(1);
+        }
+    }
+    
+    async loadNodeId() {
+        try {
+            const data = await fs.readFile(this.nodeIdFilePath, 'utf8');
+            const storedId = JSON.parse(data);
+            if (storedId && storedId.nodeId) {
+                this.nodeId = storedId.nodeId;
+                console.log(chalk.green(`Reusing existing Node ID: ${this.nodeId}`));
+            }
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                console.log(chalk.cyan('No existing Node ID found. A new one will be generated.'));
+            } else {
+                console.error(chalk.yellow('Could not read node ID file:', error.message));
+            }
+        }
+    }
+    
+    async saveNodeId(nodeId) {
+        try {
+            await fs.writeFile(this.nodeIdFilePath, JSON.stringify({ nodeId }), 'utf8');
+            console.log(chalk.gray(`Node ID saved to file for future use.`));
+        } catch (error) {
+            console.error(chalk.red('Failed to save Node ID:', error.message));
         }
     }
     
@@ -334,32 +266,19 @@ class StorageNode {
     async scanExistingFragments() {
         try {
             const files = await fs.readdir(this.config.storagePath);
+            let totalSize = 0;
             
             for (const file of files) {
                 if (file.endsWith('.frag')) {
                     const fragmentId = file.replace('.frag', '');
                     const filePath = path.join(this.config.storagePath, file);
                     const stats = await fs.stat(filePath);
-                    const data = await fs.readFile(filePath);
-                    
-                    const checksum = crypto
-                        .createHash('sha256')
-                        .update(data)
-                        .digest('hex');
-                    
-                    this.fragments.set(fragmentId, {
-                        path: filePath,
-                        size: stats.size,
-                        checksum,
-                        storedAt: stats.birthtime.getTime(),
-                        accessCount: 0
-                    });
-                    
-                    this.usedSpace += stats.size;
+                    totalSize += stats.size;
                 }
             }
+            this.usedSpace = totalSize;
             
-            console.log(chalk.cyan(`Loaded ${this.fragments.size} existing fragments (${(this.usedSpace / 1024 / 1024).toFixed(2)} MB)`));
+            console.log(chalk.cyan(`Loaded ${files.length} existing fragments (${(this.usedSpace / 1024 / 1024).toFixed(2)} MB)`));
         } catch (error) {
             console.error(chalk.yellow('Error scanning fragments:', error));
         }
@@ -399,7 +318,7 @@ class StorageNode {
     async getAvailableSpace() {
         const diskInfo = await this.getDiskInfo();
         const configuredAvailable = this.config.maxStorage - this.usedSpace;
-        const bufferSpace = 100 * 1024 * 1024; // 100MB buffer
+        const bufferSpace = 100 * 1024 * 1024;
         const availableWithBuffer = Math.max(0, diskInfo.free - bufferSpace);
         
         return Math.min(configuredAvailable, availableWithBuffer);
@@ -411,29 +330,38 @@ class StorageNode {
             
             const availableSpace = await this.getAvailableSpace();
             
+            const registrationPayload = {
+                port: this.config.port,
+                availableSpace: availableSpace,
+                publicKey: this.config.publicKey,
+                publicIp: this.publicIp,
+                nodeId: this.nodeId
+            };
+            
             const response = await axios.post(
                 `${this.config.directoryServer}/register`,
-                {
-                    port: this.config.port,
-                    availableSpace: availableSpace,
-                    publicKey: this.config.publicKey,
-                    publicIp: this.publicIp
-                },
-                {
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 10000
-                }
+                registrationPayload,
+                { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
             );
             
-            this.nodeId = response.data.nodeId;
-            console.log(chalk.green(`Registered with directory as: ${this.nodeId}`));
+            const newOrConfirmedNodeId = response.data.nodeId;
+            
+            if (!this.nodeId) {
+                this.nodeId = newOrConfirmedNodeId;
+                await this.saveNodeId(this.nodeId);
+            } else if (this.nodeId !== newOrConfirmedNodeId) {
+                console.log(chalk.yellow(`Directory assigned a new ID. Updating local ID.`));
+                this.nodeId = newOrConfirmedNodeId;
+                await this.saveNodeId(this.nodeId);
+            }
+            
+            console.log(chalk.green(`Registered with directory. Node ID: ${this.nodeId}`));
             
             if (this.publicIp === 'localhost') {
                 console.log(chalk.yellow('\nWARNING: Node is in local mode'));
                 console.log(chalk.yellow('To accept connections from the internet:'));
                 console.log(chalk.gray('1. Configure port forwarding on your router for port ' + this.config.port));
                 console.log(chalk.gray('2. Ensure your firewall is not blocking this port'));
-                console.log(chalk.gray('3. Use a static IP or DDNS for your computer'));
             }
             
         } catch (error) {
@@ -492,7 +420,7 @@ class StorageNode {
             } else {
                 console.log(chalk.red(`${corruptedCount} corrupted fragments found`));
             }
-        }, 3600000); // Every hour
+        }, 3600000);
     }
     
     startDiskSpaceMonitor() {
@@ -504,12 +432,10 @@ class StorageNode {
             
             if (diskFreePercent < 10) {
                 console.log(chalk.red.bold(`WARNING: Disk space critically low! ${diskFreePercent.toFixed(2)}% free`));
-            } else if (diskFreePercent < 20) {
-                console.log(chalk.yellow(`Warning: Disk space running low. ${diskFreePercent.toFixed(2)}% free`));
             }
             
             console.log(chalk.gray(`Disk space check: ${(availableSpace / 1024 / 1024 / 1024).toFixed(2)} GB available`));
-        }, 300000); // Every 5 minutes
+        }, 300000);
     }
     
     async reportFragmentStorage(fragmentId, metadata) {
@@ -565,12 +491,6 @@ class StorageNode {
    Configured Max: ${(this.config.maxStorage / 1024 / 1024 / 1024).toFixed(2)} GB
 =======================================
             `));
-            console.log(chalk.cyan('Configuration loaded from .env file'));
-            
-            if (diskInfo.free < this.config.maxStorage) {
-                console.log(chalk.yellow('\nNote: Actual disk space is less than configured maximum.'));
-                console.log(chalk.yellow('Node will use actual available space.'));
-            }
         });
     }
 }
