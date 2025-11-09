@@ -1,0 +1,5 @@
+node_modules/
+storage/
+*.myst
+*.log
+package-lock.json
