@@ -447,7 +447,7 @@ DEBUG=mysterium:* node client/client.js upload test.txt
 
 Support the project:
 
-**BTC**: `bc1qgws0d303egpcfwnj536ppq9y9hksxq0e6vzmnv`
+**BTC**: `bc1q3pz8yy8qsmp50p28xa9ksds4ms00ke80zyxf5q`
 
 ---
 
