@@ -8,8 +8,6 @@
 
 A privacy-focused, distributed storage protocol that encrypts your files client-side, splits them into fragments, and distributes them across volunteer storage nodes worldwide. Your data is protected by military-grade double encryption.
 
-![Your logo](M.png)
-
 ---
 
 ## Table of Contents
