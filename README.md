@@ -4,6 +4,8 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Node](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen)
 
+![Your logo](M.png)
+
 **Distributed Encrypted Storage System**
 
 A privacy-focused, distributed storage protocol that encrypts your files client-side, splits them into fragments, and distributes them across volunteer storage nodes worldwide. Your data is protected by military-grade double encryption.
