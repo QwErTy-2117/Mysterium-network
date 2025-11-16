@@ -451,9 +451,7 @@ DEBUG=mysterium:* node client/client.js upload test.txt
 
 
 ### Give me a star
-
-🔗 [View Star-History chart](https://star-history.com/#QwErTy-2117/Mysterium-network&Date)
-
+[![Star History Chart](https://api.star-history.com/svg?repos=QwErTy-2117/Mysterium-network&type=date&legend=top-left)](https://www.star-history.com/#QwErTy-2117/Mysterium-network&type=date&legend=top-left)
 ---
 
 ## License
