@@ -452,7 +452,7 @@ DEBUG=mysterium:* node client/client.js upload test.txt
 
 ### Give me a star
 
-[![Star History Chart](https://api.star-history.com/svg?repos=QwErTy-2117/Mysterium-network&type=Date)](https://star-history.com/#QwErTy-2117/Mysterium-network&Date)
+🔗 [View Star-History chart](https://star-history.com/#QwErTy-2117/Mysterium-network&Date)
 
 ---
 
