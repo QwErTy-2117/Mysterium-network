@@ -443,15 +443,11 @@ DEBUG=mysterium:* node client/client.js upload test.txt
 
 ---
 
-## Support:
+## Support the project
 
 ### ❤️ Donate:
 
 **BTC**: `bc1q3pz8yy8qsmp50p28xa9ksds4ms00ke80zyxf5q`
-
-### Give the project a star
-
-<iframe style="width:100%;height:auto;min-width:600px;min-height:400px;" src="https://www.star-history.com/embed?secret=c2VjcmV0#QwErTy-2117/Mysterium-network&type=date&legend=top-left" frameBorder="0"></iframe>
 
 ---
 
